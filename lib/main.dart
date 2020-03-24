@@ -1,7 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'dart:convert';
 
-final AudioPlayer audioPlayer = AudioPlayer();
+import 'package:flutter/material.dart';
+// import 'package:audioplayers/audioplayers.dart';
+// import 'package:path_provider/path_provider.dart';
+// import 'package:simple_permissions/simple_permissions.dart';
+import 'package:storage_path/storage_path.dart';
+import 'musicInfo.dart';
+
+// final musicBank = null;
+
+// final AudioPlayer audioPlayer = AudioPlayer();
 
 void main() {
   runApp(new MaterialApp(
@@ -40,7 +48,14 @@ class HomeScreen extends StatelessWidget {
           ),
           body: TabBarView(
             children: [
-              Icon(Icons.directions_car),
+              FutureBuilder(
+                future: scanMediaFile(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) print(snapshot.error);
+                  return snapshot.hasData
+                      ? MusicList(songs: snapshot.data)
+                      : Center(child: CircularProgressIndicator());
+                },),
               Icon(Icons.directions_transit),
               Icon(Icons.directions_bike),
             ],
@@ -70,6 +85,8 @@ class CurrentPlay extends StatelessWidget {
     return new Scaffold(
       appBar: new AppBar(
         title: new Text("Second Screen"),
+        elevation: 0,//appbar的阴影
+        backgroundColor: Colors.blue,
       ),
     );
   }
@@ -118,6 +135,41 @@ class MyDrawer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+Future<List<MusicItem>> scanMediaFile() async{
+  var result = new List<MusicItem>();
+  try {
+      var path = await StoragePath.audioPath;
+      var jsonSongs = jsonDecode(path)[0];
+      var songs = jsonSongs['files'];
+      for (var item in songs) {
+        var musicItem = new MusicItem();
+        musicItem.album = item['album'];
+        musicItem.artist = item['artist'];
+        musicItem.dateAdded = item['dateAdded'];
+        musicItem.displayName = item['displayName'];
+        musicItem.duration = item['duration'];
+        result.add(musicItem);
+      }
+    } catch(e) {
+      print('Failed to get path with error: ' + e);
+  }
+  return result;
+}
+
+class MusicList extends StatelessWidget{
+  final List<MusicItem> songs;
+  MusicList({Key key, this.songs}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: songs.length,
+      itemBuilder: (context, index) {
+        return new ListTile(title: new Text('${songs[index].getdisplayName()}'));
+      },
     );
   }
 }
