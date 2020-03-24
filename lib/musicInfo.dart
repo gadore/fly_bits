@@ -1,4 +1,5 @@
 class MusicItem {
+  String id;
   String album;
   String artist;
   String path;

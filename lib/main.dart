@@ -1,15 +1,16 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-// import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayers/audioplayers.dart';
 // import 'package:path_provider/path_provider.dart';
-// import 'package:simple_permissions/simple_permissions.dart';
 import 'package:storage_path/storage_path.dart';
 import 'musicInfo.dart';
+import 'package:http/http.dart' as http;
 
-// final musicBank = null;
-
-// final AudioPlayer audioPlayer = AudioPlayer();
+var musicBank = new Map<String,MusicItem>();
+var currentMusicId = 'currentPlay';
+final AudioPlayer audioPlayer = AudioPlayer();
 
 void main() {
   runApp(new MaterialApp(
@@ -49,7 +50,7 @@ class HomeScreen extends StatelessWidget {
           body: TabBarView(
             children: [
               FutureBuilder(
-                future: scanMediaFile(),
+                future: fetchMusicList(http.Client()),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) print(snapshot.error);
                   return snapshot.hasData
@@ -71,7 +72,8 @@ class HomeScreen extends StatelessWidget {
                 Navigator.push(context,
                     MaterialPageRoute(builder: (context) => CurrentPlay()));
               },
-            )
+            ),
+            Text(currentMusicId)
           ],
         ),
       ),
@@ -160,6 +162,29 @@ Future<List<MusicItem>> scanMediaFile() async{
   return result;
 }
 
+Future<List<MusicItem>> fetchMusicList(http.Client client) async {
+  var url = 'http://server.gadore.me:2333/music';
+  var urlString =
+      "{\"url\":\"http://music.163.com/playlist/72210253/68328243/?userid=68328243\"}";
+  var response = await client
+      .post(url, body: urlString, headers: {"Accept": "application/json"});
+  return compute(parseMusic, response.body);
+}
+
+List<MusicItem> parseMusic(String responseBody) {
+  var parsed = jsonDecode(responseBody)["data"];
+  var list = new List<MusicItem>();
+  for (var jObj in parsed) {
+    var m = new MusicItem();
+    // m.id = jObj["id"].split('_')[1];
+    m.id = jObj["id"];
+    m.displayName = jObj["name"];
+    list.add(m);
+    // musicBank[m.id] = m;
+  }
+  return list;
+}
+
 class MusicList extends StatelessWidget{
   final List<MusicItem> songs;
   MusicList({Key key, this.songs}) : super(key: key);
@@ -168,9 +193,13 @@ class MusicList extends StatelessWidget{
     return ListView.builder(
       itemCount: songs.length,
       itemBuilder: (context, index) {
-        return new ListTile(title: new Text('${songs[index].getdisplayName()}'));
+        return new ListTile(
+          title: new Text('${songs[index].getdisplayName()}'),
+          onTap: (){
+            currentMusicId = songs[index].id;
+          },
+        );
       },
     );
   }
 }
-
